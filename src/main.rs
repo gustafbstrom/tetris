@@ -109,7 +109,7 @@ fn game_loop() {
             }
         }
 
-        /********** GAME STATE **********/
+        /********** UPDATE GAME ENGINE STATE **********/
         for py in 0..FIELD_HEIGHT {
             for px in 0..FIELD_WIDTH {
                 let idx = py*FIELD_WIDTH + px;
@@ -122,7 +122,7 @@ fn game_loop() {
             }
         }
 
-        /********** RENDER **********/
+        /********** RENDER GAME BOARD **********/
         write!(stdout, "{}", termion::cursor::Goto(1, 1));
         for py in 0..FIELD_HEIGHT {
             for px in 0..FIELD_WIDTH {
