@@ -3,28 +3,13 @@ extern crate termion;
 use termion::event::Key;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
-use std::io::{Write, stdout, stdin};
+use std::io::Write;
 
 pub enum Face {
     UP,
     RIGHT,
     DOWN,
     LEFT,
-}
-
-struct GameBoard {
-    width : u32,
-    height : u32,
-
-}
-
-impl Default for GameBoard {
-    fn default() -> Self {
-        GameBoard {
-            width: 12,
-            height: 18,
-        }
-    }
 }
 
 pub struct Tetroids {
@@ -47,9 +32,9 @@ impl Tetroids {
         tetroids[2] += "..X.";
         tetroids[2] += ".XX.";
         tetroids[2] += "....";
+        tetroids[3] += ".XX.";
+        tetroids[3] += ".XX.";
         tetroids[3] += "....";
-        tetroids[3] += ".XX.";
-        tetroids[3] += ".XX.";
         tetroids[3] += "....";
         tetroids[4] += ".X..";
         tetroids[4] += ".XX.";
@@ -78,66 +63,76 @@ impl Tetroids {
             Face::LEFT => 3 + y + (self.size*x),
         }
     }
-
-    /* TDOD: get rotated tetroid string */
-    // pub fn get_tetroid(&self, idx: u32, face: Face) -> &str {
-    //     let tetroid = String::new();
-    //     for y in 0..self.size {
-    //         for x in 0..self.size {
-    //             tetroid.push_str(tetroid[idx].get(self.rotation(x, y, face)))
-    //         }
-    //     }
-    // }
 }
 
 fn game_loop() {
-    let game_board = GameBoard {..Default::default()};
-    let tetroids = Tetroids::new();
-    println!("{}", tetroids.rotation(0, 0, Face::UP));
-    
-    let stdin = stdin();
-    let mut stdout = stdout().into_raw_mode().unwrap();
+    /* Init */
+    const FIELD_WIDTH: usize = 12;
+    const FIELD_HEIGHT: usize = 18;
+    let game_sprites = [' ', 'A', 'B', 'C', 'D', 'E', 'F', 'G', '=', '#'];
+    let mut game_field = [0u8; FIELD_WIDTH*FIELD_HEIGHT];
 
-    write!(stdout, "{}{}q to exit{}",
+    let mut stdin = termion::async_stdin().keys();
+    let mut stdout = std::io::stdout().into_raw_mode().unwrap();
+
+    let tick_size = std::time::Duration::from_millis(50);
+    
+    /* PRE-RENDER, CLEAN */
+    write!(stdout, "{}{}{}",
         termion::clear::All,
         termion::cursor::Goto(1, 1),
         termion::cursor::Hide).unwrap();
     stdout.flush().unwrap();
 
-    for c in stdin.keys() {
-        write!(stdout, "{}{}",
-            termion::cursor::Goto(1, 1),
-            termion::clear::CurrentLine).unwrap();
-        stdout.flush().unwrap();
-        
-        match c.unwrap() {
-            Key::Char('q') => break,
-        //     Key::Char(c) => println!("{}", c),
-        //     Key::Alt(c) => println!("Alt-{}", c),
-        //     Key::Ctrl(c) => println!("Ctrl-{}", c),
-            Key::Down => println!("<down>"),
-            Key::Up => println!("<up>"),
-            Key::Left => println!("<left>"),
-            Key::Right => println!("<right>"),
-            _ => () //println!("Other"),
+    'game_loop: loop {
+        /********** TIME CONTROL **********/
+        std::thread::sleep(tick_size);
+
+        /********** USER INPUT **********/
+        let input = stdin.next();
+        if let Some(Ok(key)) = input {
+            match key {
+                Key::Char('q') => break 'game_loop,
+                Key::Down => {
+                    /* TODO: Move down */
+                },
+                Key::Left => {
+                    /* TODO: Move left */
+                },
+                Key::Right => {
+                    /* TODO: Move right */
+                },
+                Key::Char('z') => {
+                    /* TODO: Rotate tetroid */
+                },
+                _ => (),
+            }
         }
 
-        // let mut line = 0u16;
-        for line in 1..game_board.height as u16 {
-            write!(stdout, "{}{}*{: <3$}*",
-                termion::cursor::Goto(1, line),
-                termion::clear::CurrentLine,
-                ' ',
-                game_board.width as usize).unwrap();    
-            // line += 1;
+        /********** GAME STATE **********/
+        for py in 0..FIELD_HEIGHT {
+            for px in 0..FIELD_WIDTH {
+                let idx = py*FIELD_WIDTH + px;
+                if px == 0 || px == FIELD_WIDTH-1 || py == FIELD_HEIGHT-1 {
+                    game_field[idx] = 9;
+                }
+                else {
+                    game_field[idx] = 0;
+                }
+            }
         }
-        write!(stdout, "{}{}*{:*<3$}*",
-            termion::cursor::Goto(1, game_board.height as u16),
-            termion::clear::CurrentLine,
-            "",
-            game_board.width as usize).unwrap();
+
+        /********** RENDER **********/
+        write!(stdout, "{}", termion::cursor::Goto(1, 1));
+        for py in 0..FIELD_HEIGHT {
+            for px in 0..FIELD_WIDTH {
+                let idx: usize = py*FIELD_WIDTH + px;
+                write!(stdout, "{}", game_sprites[game_field[idx] as usize]);
+            }
+            // write!(stdout, "\n");
+            write!(stdout, "{}", termion::cursor::Goto(1, py as u16+2));
+        }
         stdout.flush().unwrap();
-        // break;
     }
     write!(stdout, "Game over{}", termion::cursor::Show).unwrap();
 }
