@@ -4,35 +4,38 @@ use termion::raw::IntoRawMode;
 use std::io::Write;
 use rand;
 
-const TETROIDS: [[char; 16]; 7] = [
-    ['.','.','X','.',
-    '.','.','X','.',
-    '.','.','X','.',
-    '.','.','X','.',],
-    ['.','X','.','.',
-    '.','X','.','.',
-    '.','X','X','.',
-    '.','.','.','.',],
-    ['.','.','X','.',
-    '.','.','X','.',
-    '.','X','X','.',
-    '.','.','.','.',],
-    ['.','X','X','.',
-    '.','X','X','.',
-    '.','.','.','.',
-    '.','.','.','.',],
-    ['.','X','.','.',
-    '.','X','X','.',
-    '.','.','X','.',
-    '.','.','.','.',],
-    ['.','.','X','.',
-    '.','X','X','.',
-    '.','X','.','.',
-    '.','.','.','.',],
-    ['.','.','X','.',
-    '.','X','X','.',
-    '.','.','X','.',
-    '.','.','.','.',],
+const FIELD_WIDTH: usize = 12;
+const FIELD_HEIGHT: usize = 18;
+const TETROID_SIZE: usize = 4;
+const TETROIDS: [[u8; 16]; 7] = [
+    [0,0,1,0,
+     0,0,1,0,
+     0,0,1,0,
+     0,0,1,0,],
+    [0,1,0,0,
+     0,1,0,0,
+     0,1,1,0,
+     0,0,0,0,],
+    [0,0,1,0,
+     0,0,1,0,
+     0,1,1,0,
+     0,0,0,0,],
+    [0,1,1,0,
+     0,1,1,0,
+     0,0,0,0,
+     0,0,0,0,],
+    [0,1,0,0,
+     0,1,1,0,
+     0,0,1,0,
+     0,0,0,0,],
+    [0,0,1,0,
+     0,1,1,0,
+     0,1,0,0,
+     0,0,0,0,],
+    [0,0,1,0,
+     0,1,1,0,
+     0,0,1,0,
+     0,0,0,0,],
 ];
 
 #[derive(Debug)]
@@ -45,34 +48,44 @@ pub enum Face {
 
 #[derive(Debug)]
 pub struct Tetroid<'a> {
-    tetroid: &'a [char],
+    tetroid_n: usize,
+    tetroid: &'a [u8],
     face: Face,
 }
 
 impl Tetroid<'_> {
     fn new(new_tetroid: usize) -> Self {
         Tetroid {
+            tetroid_n: new_tetroid,
             tetroid: &TETROIDS[new_tetroid],
             face: Face::UP,
         }
     }
-}
 
-fn rotation(x: u32, y: u32, face: Face) -> u32 {
-    const SIZE: u32 = 4;
-    match face {
-        Face::UP => y + SIZE*x,
-        Face::RIGHT => 12 + y + (SIZE*x),
-        Face::DOWN => 15 - (SIZE*y) - x,
-        Face::LEFT => 3 + y + (SIZE*x),
+    fn rotation(&self, x: u32, y: u32) -> u8 {
+        let size = TETROID_SIZE as u32;
+        match self.face {
+            Face::UP => self.tetroid[(y + size*x) as usize],
+            Face::RIGHT => self.tetroid[(12 + y + (size*x)) as usize],
+            Face::DOWN => self.tetroid[(15 - (size*y) - x) as usize],
+            Face::LEFT => self.tetroid[(3 + y + (size*x)) as usize],
+        }
     }
 }
 
-fn check_collision(x: i32, y: i32, tet: &Tetroid, gb: &[u8]) -> bool {
-    // for py in gb.len() {
-    //     for
-    // }
-    false
+
+fn is_passable(pos_x: i32, pos_y: i32, tet: &Tetroid, gb: &[u8]) -> bool {
+    for px in 0..TETROID_SIZE as i32 {
+        let x = pos_x + px;
+        for py in 0..TETROID_SIZE as i32 {
+            let y = pos_y + py;
+            /* TODO: Check if
+               1) we are within game board boundaries;
+               2) we are not hitting another object
+            */
+        }
+    }
+    true
 }
 
 /**
@@ -85,14 +98,13 @@ fn new_tetroid() -> Tetroid<'static> {
 
 fn game_loop() {
     /* Init */
-    const FIELD_WIDTH: usize = 12;
-    const FIELD_HEIGHT: usize = 18;
     let game_sprites = [' ', 'A', 'B', 'C', 'D', 'E', 'F', 'G', '=', '#'];
     let mut game_field = [0u8; FIELD_WIDTH*FIELD_HEIGHT];
 
     let mut current_tetroid = new_tetroid();
     let mut x = FIELD_HEIGHT as i32;
     let mut y = 0i32;
+    let mut total_score = 0;
 
     let mut stdin = termion::async_stdin().keys();
     let mut stdout = std::io::stdout().into_raw_mode().unwrap();
@@ -130,26 +142,33 @@ fn game_loop() {
                 Key::Char('q') => break 'game_loop,
                 Key::Down => {
                     /* TODO: Move down */
-                    let is_collision = check_collision(x, y+1, &current_tetroid, &game_field);
-                    if !is_collision {
+                    if is_passable(x, y+1, &current_tetroid, &game_field) {
                         y += 1;
                     }
                 },
                 Key::Left => {
-                    /* TODO: Move left */
-                    let is_collision = check_collision(x-1, y, &current_tetroid, &game_field);
-                    if !is_collision {
+                     /* TODO: Move left */
+                    if is_passable(x-1, y, &current_tetroid, &game_field) {
                         x -= 1;
                     }
-                },
+                } ,
                 Key::Right => {
-                    /* TODO: Move right */
-                    let is_collision = check_collision(x+1, y, &current_tetroid, &game_field);
-                    if !is_collision {
+                     /* TODO: Move right */
+                    if is_passable(x+1, y, &current_tetroid, &game_field) {
                         x += 1;
                     }
-                },
+                } ,
                 Key::Char('z') => {
+                    /* Counter-clockwise rotation */
+                     match current_tetroid.face {
+                        Face::UP => current_tetroid.face = Face::LEFT,
+                        Face::LEFT => current_tetroid.face = Face::DOWN,
+                        Face::DOWN => current_tetroid.face = Face::RIGHT,
+                        Face::RIGHT => current_tetroid.face = Face::UP,
+                     }
+                } ,
+                Key::Char('x') => {
+                    /* C lockwise rotation */
                     match current_tetroid.face {
                         Face::UP => current_tetroid.face = Face::RIGHT,
                         Face::RIGHT => current_tetroid.face = Face::DOWN,
@@ -165,19 +184,23 @@ fn game_loop() {
 
 
         /********** RENDER GAME BOARD **********/
-        write!(stdout, "{}", termion::cursor::Goto(1, 1));
+        write!(stdout, "{}{}", termion::clear::UntilNewline, termion::cursor::Goto(1, 1)).unwrap();
         for py in 0..FIELD_HEIGHT {
             for px in 0..FIELD_WIDTH {
                 let idx: usize = py*FIELD_WIDTH + px;
-                write!(stdout, "{}", game_sprites[game_field[idx] as usize]);
+                write!(stdout, "{}", game_sprites[game_field[idx] as usize]).unwrap();
             }
-            // write!(stdout, "\n");
-            write!(stdout, "{}", termion::cursor::Goto(1, py as u16+2));
+            write!(stdout, "{}", termion::cursor::Goto(1, py as u16+2)).unwrap();
         }
         stdout.flush().unwrap();
-        write!(stdout, "{:?}", current_tetroid.face);
+        write!(stdout, "{:?}", current_tetroid.face).unwrap();
     }
-    write!(stdout, "Game over{}", termion::cursor::Show).unwrap();
+    write!(stdout,
+        "{}Game over. Total score: {}{}",
+        termion::cursor::Goto(1, FIELD_HEIGHT as u16+2),
+        total_score,
+        termion::cursor::Show)
+        .unwrap();
 }
 
 fn main() {
